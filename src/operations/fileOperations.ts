@@ -172,25 +172,21 @@ export async function verifyDownload(originalPath: string, downloadedPath: strin
 }
 
 export async function waitForMSPConfirmOnChain(fileKey: string) {
-  const maxAttempts = 10;
+  const maxAttempts = 20;
   const delayMs = 2000;
 
   for (let i = 0; i < maxAttempts; i++) {
-    console.log(`Check storage request has been confirmed by the MSP on-chain, attempt ${i + 1} of ${maxAttempts}...`);
-
     const req = await polkadotApi.query.fileSystem.storageRequests(fileKey);
     if (req.isNone) {
       throw new Error(`StorageRequest for ${fileKey} no longer exists on-chain.`);
     }
     const data: PalletFileSystemStorageRequestMetadata = req.unwrap();
-
     // MSP confirmation
-    const mspTuple = data.msp.isSome ? data.msp.unwrap() : null;
-    // here convert mspTuple[1] from codec Bool to native boolean by checking isTrue
-    const mspConfirmed = mspTuple ? (mspTuple[1] as any).isTrue : false;
+    const mspStatus = data.mspStatus;
+
+    const mspConfirmed = mspStatus.isAcceptedNewFile || mspStatus.isAcceptedExistingFile;
 
     if (mspConfirmed) {
-      console.log('Storage request confirmed by MSP on-chain');
       return;
     }
 
